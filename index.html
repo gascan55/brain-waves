@@ -47,7 +47,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 /* Preset buttons */
 .presets{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .preset-btn{background:var(--bg);border:2px solid var(--border);border-radius:10px;
-  padding:10px 4px;text-align:center;cursor:pointer;transition:all .2s;-webkit-user-select:none;user-select:none}
+  padding:10px 4px;text-align:center;cursor:pointer;transition:all .2s;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .preset-btn.active{border-color:var(--color)}
 .preset-btn .name{font-size:12px;font-weight:700;color:var(--color)}
 .preset-btn .hz{font-size:10px;color:var(--muted);margin-top:2px}
@@ -69,7 +69,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 /* Noise */
 .noise-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .noise-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;
-  padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s}
+  padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;touch-action:manipulation}
 .noise-btn.active{border-color:var(--accent);color:var(--accent)}
 
 /* Chime */
@@ -84,7 +84,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .toggle input:checked+.track::after{left:23px}
 .chime-sounds{display:flex;gap:6px;margin-bottom:8px}
 .chime-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;
-  padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;flex:1;text-align:center}
+  padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;flex:1;text-align:center;touch-action:manipulation}
 .chime-btn.active{border-color:var(--yellow);color:var(--yellow)}
 .test-btn{background:var(--purple);color:#fff;border:none;border-radius:8px;
   padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600}
@@ -102,7 +102,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 /* Sessions */
 .sessions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .session-btn{background:var(--bg);border:1px solid var(--purple);border-radius:10px;
-  padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s}
+  padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s;touch-action:manipulation}
 .session-btn .sname{font-size:11px;font-weight:700;color:var(--purple)}
 .session-btn .sdur{font-size:10px;color:var(--muted);margin-top:2px}
 
@@ -111,7 +111,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px;
   justify-content:center;z-index:100}
 .transport button{border:none;border-radius:10px;padding:12px 20px;font-size:14px;
-  font-weight:700;cursor:pointer;color:#fff;flex:1;max-width:160px}
+  font-weight:700;cursor:pointer;color:#fff;flex:1;max-width:160px;touch-action:manipulation}
 .btn-play{background:var(--green)}
 .btn-stop{background:var(--red)}
 .btn-timer{background:var(--accent)}
@@ -275,9 +275,17 @@ let sessionTimeout = null;
 let vizAn = null, vizData = null;
 
 function initAudio() {
-  if (audioCtx) return;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
 }
+
+// Resume audio on any user interaction (required by mobile browsers)
+document.addEventListener('touchstart', () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }, {once: false, passive: true});
+document.addEventListener('click', () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }, {once: false});
 
 function createNoiseBuffer(type) {
   const sr = audioCtx.sampleRate;
@@ -653,8 +661,9 @@ PRESETS.forEach(p => {
   const div = document.createElement('div');
   div.className = 'preset-btn';
   div.style.setProperty('--color', p.color);
+  div.setAttribute('role', 'button');
   div.innerHTML = `<div class="name">${p.name}</div><div class="hz">${Math.abs(p.fR-p.fL)} Hz</div>`;
-  div.onclick = () => selectPreset(p);
+  div.addEventListener('click', (e) => { e.preventDefault(); selectPreset(p); });
   presetContainer.appendChild(div);
 });
 
@@ -678,13 +687,15 @@ const noiseContainer = el('noiseBtns');
 NOISE_TYPES.forEach(t => {
   const div = document.createElement('div');
   div.className = 'noise-btn' + (t === 'None' ? ' active' : '');
+  div.setAttribute('role', 'button');
   div.textContent = t;
-  div.onclick = () => {
+  div.addEventListener('click', (e) => {
+    e.preventDefault();
     noiseType = t;
     noiseContainer.querySelectorAll('.noise-btn').forEach(b => b.classList.remove('active'));
     div.classList.add('active');
     if (isPlaying) { stopNoise(); startNoise(t); }
-  };
+  });
   noiseContainer.appendChild(div);
 });
 
@@ -693,12 +704,14 @@ const chimeContainer = el('chimeBtns');
 CHIME_TONES.forEach(t => {
   const div = document.createElement('div');
   div.className = 'chime-btn' + (t === 'Bowl' ? ' active' : '');
+  div.setAttribute('role', 'button');
   div.textContent = t;
-  div.onclick = () => {
+  div.addEventListener('click', (e) => {
+    e.preventDefault();
     chimeTone = t;
     chimeContainer.querySelectorAll('.chime-btn').forEach(b => b.classList.remove('active'));
     div.classList.add('active');
-  };
+  });
   chimeContainer.appendChild(div);
 });
 
@@ -708,8 +721,9 @@ Object.keys(SESSIONS).forEach(name => {
   const total = SESSIONS[name].reduce((s,x) => s + x.dur, 0);
   const div = document.createElement('div');
   div.className = 'session-btn';
+  div.setAttribute('role', 'button');
   div.innerHTML = `<div class="sname">${name}</div><div class="sdur">${Math.floor(total/60)} min</div>`;
-  div.onclick = () => startSession(name);
+  div.addEventListener('click', (e) => { e.preventDefault(); startSession(name); });
   sessionContainer.appendChild(div);
 });
 
