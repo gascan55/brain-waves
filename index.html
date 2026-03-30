@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0f0f23">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Brain Waves</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f23;--surface:#1a1a2e;--border:#2a2a4a;
+  --text:#e0e0e0;--muted:#888899;--accent:#3B82F6;
+  --green:#10B981;--red:#EF4444;--purple:#8B5CF6;
+  --yellow:#F59E0B;--orange:#F97316;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+.app{max-width:480px;margin:0 auto;padding:16px 16px 100px}
+
+/* Header */
+.header{text-align:center;margin-bottom:16px}
+.header h1{font-size:26px;font-weight:700;color:#fff}
+.header p{font-size:12px;color:var(--muted)}
+
+/* Waveform */
+.viz{background:var(--surface);border-radius:12px;height:100px;margin-bottom:16px;overflow:hidden;position:relative}
+.viz canvas{width:100%;height:100%}
+.viz .label{position:absolute;top:6px;font-size:10px;font-weight:700;padding:2px 6px}
+.viz .label-l{left:6px;color:var(--accent)}
+.viz .label-r{left:6px;bottom:6px;top:auto;color:var(--red)}
+
+/* Status */
+.status-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:13px}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.status-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-dot.off{background:#555}
+
+/* Cards */
+.card{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:12px}
+.card-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px}
+
+/* Preset buttons */
+.presets{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.preset-btn{background:var(--bg);border:2px solid var(--border);border-radius:10px;
+  padding:10px 4px;text-align:center;cursor:pointer;transition:all .2s;-webkit-user-select:none;user-select:none}
+.preset-btn.active{border-color:var(--color)}
+.preset-btn .name{font-size:12px;font-weight:700;color:var(--color)}
+.preset-btn .hz{font-size:10px;color:var(--muted);margin-top:2px}
+.preset-desc{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+
+/* Sliders */
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.slider-row label{font-size:12px;min-width:50px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--accent);height:6px}
+.slider-row .val{font-size:12px;min-width:36px;text-align:right;color:var(--muted)}
+
+/* Custom freq */
+.freq-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.freq-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:8px 10px;width:80px;font-size:14px;text-align:center}
+.freq-input:focus{outline:none;border-color:var(--accent)}
+.beat-info{font-size:13px;color:var(--accent);font-weight:600}
+
+/* Noise */
+.noise-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.noise-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s}
+.noise-btn.active{border-color:var(--accent);color:var(--accent)}
+
+/* Chime */
+.chime-toggle{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.chime-toggle label{font-size:13px}
+.toggle{position:relative;width:44px;height:24px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .track{position:absolute;inset:0;background:var(--border);border-radius:12px;transition:.3s}
+.toggle input:checked+.track{background:var(--green)}
+.toggle .track::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;
+  background:#fff;top:3px;left:3px;transition:.3s}
+.toggle input:checked+.track::after{left:23px}
+.chime-sounds{display:flex;gap:6px;margin-bottom:8px}
+.chime-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;flex:1;text-align:center}
+.chime-btn.active{border-color:var(--yellow);color:var(--yellow)}
+.test-btn{background:var(--purple);color:#fff;border:none;border-radius:8px;
+  padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600}
+
+/* Timer */
+.timer-display{font-family:'Courier New',monospace;font-size:42px;font-weight:700;
+  text-align:center;color:var(--green);margin:6px 0}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .5s}
+.timer-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:8px}
+.timer-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:6px 10px;width:60px;font-size:14px;text-align:center}
+.phase-text{font-size:12px;color:var(--yellow);text-align:center;font-style:italic;min-height:16px}
+
+/* Sessions */
+.sessions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.session-btn{background:var(--bg);border:1px solid var(--purple);border-radius:10px;
+  padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s}
+.session-btn .sname{font-size:11px;font-weight:700;color:var(--purple)}
+.session-btn .sdur{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* Transport */
+.transport{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+  border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:8px;
+  justify-content:center;z-index:100}
+.transport button{border:none;border-radius:10px;padding:12px 20px;font-size:14px;
+  font-weight:700;cursor:pointer;color:#fff;flex:1;max-width:160px}
+.btn-play{background:var(--green)}
+.btn-stop{background:var(--red)}
+.btn-timer{background:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Brain Waves</h1>
+    <p>Binaural Beats Generator</p>
+  </div>
+
+  <!-- Waveform -->
+  <div class="viz">
+    <canvas id="vizCanvas"></canvas>
+    <div class="label label-l">L</div>
+    <div class="label label-r">R</div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div><span class="status-dot off" id="statusDot"></span><span id="statusText">Stopped</span></div>
+    <div id="freqInfo" style="font-size:12px;color:var(--muted)"></div>
+  </div>
+
+  <!-- Presets -->
+  <div class="card">
+    <div class="card-title">Brainwave Presets</div>
+    <div class="presets" id="presetBtns"></div>
+    <div class="preset-desc" id="presetDesc">Select a preset</div>
+  </div>
+
+  <!-- Custom Frequencies -->
+  <div class="card">
+    <div class="card-title">Custom Frequencies</div>
+    <div class="freq-row">
+      <span style="font-size:12px;color:var(--muted)">L:</span>
+      <input type="number" class="freq-input" id="freqL" value="60" min="20" max="1000" step="1">
+      <span style="font-size:12px;color:var(--muted)">R:</span>
+      <input type="number" class="freq-input" id="freqR" value="66" min="20" max="1000" step="1">
+      <span class="beat-info" id="beatInfo">6 Hz beat</span>
+    </div>
+  </div>
+
+  <!-- Volume -->
+  <div class="card">
+    <div class="card-title">Volume</div>
+    <div class="slider-row">
+      <label>Main</label>
+      <input type="range" id="volumeSlider" min="0" max="100" value="50">
+      <span class="val" id="volumeVal">50%</span>
+    </div>
+  </div>
+
+  <!-- Background Sound -->
+  <div class="card">
+    <div class="card-title">Background Sound</div>
+    <div class="noise-row" id="noiseBtns"></div>
+    <div class="slider-row">
+      <label>Level</label>
+      <input type="range" id="noiseVolSlider" min="0" max="100" value="30">
+      <span class="val" id="noiseVolVal">30%</span>
+    </div>
+  </div>
+
+  <!-- Interval Chime -->
+  <div class="card">
+    <div class="card-title">Interval Chime</div>
+    <div class="chime-toggle">
+      <label class="toggle"><input type="checkbox" id="chimeEnabled"><span class="track"></span></label>
+      <label>Enable</label>
+      <span style="margin-left:auto;font-size:12px;color:var(--muted)">Every</span>
+      <input type="number" class="freq-input" id="chimeInterval" value="30" min="5" max="3600" step="5" style="width:55px">
+      <span style="font-size:12px;color:var(--muted)">sec</span>
+    </div>
+    <div class="chime-sounds" id="chimeBtns"></div>
+    <div class="slider-row">
+      <label>Volume</label>
+      <input type="range" id="chimeVolSlider" min="0" max="100" value="50">
+      <span class="val" id="chimeVolVal">50%</span>
+      <button class="test-btn" id="testChimeBtn">Test</button>
+    </div>
+  </div>
+
+  <!-- Timer -->
+  <div class="card">
+    <div class="card-title">Session Timer</div>
+    <div class="timer-row">
+      <span style="font-size:12px;color:var(--muted)">Duration:</span>
+      <input type="number" class="timer-input" id="timerMin" value="15" min="1" max="480">
+      <span style="font-size:12px;color:var(--muted)">min</span>
+    </div>
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="phase-text" id="phaseText"></div>
+  </div>
+
+  <!-- Guided Sessions -->
+  <div class="card">
+    <div class="card-title">Guided Sessions</div>
+    <div class="sessions" id="sessionBtns"></div>
+  </div>
+
+</div>
+
+<!-- Transport Bar -->
+<div class="transport">
+  <button class="btn-play" id="playBtn">Play</button>
+  <button class="btn-timer" id="timerBtn">Timed</button>
+  <button class="btn-stop" id="stopBtn">Stop</button>
+</div>
+
+<script>
+// ─── Audio Engine ──────────────────────────────────────────────────────────
+
+const PRESETS = [
+  { name:'Delta', fL:60, fR:62, color:'#8B5CF6', desc:'Deep sleep, healing (2 Hz)' },
+  { name:'Theta', fL:60, fR:66, color:'#3B82F6', desc:'Meditation, creativity (6 Hz)' },
+  { name:'Alpha', fL:200,fR:210,color:'#10B981', desc:'Relaxation, calm focus (10 Hz)' },
+  { name:'Beta',  fL:200,fR:220,color:'#F59E0B', desc:'Active thinking, focus (20 Hz)' },
+  { name:'Gamma', fL:200,fR:240,color:'#EF4444', desc:'Peak awareness (40 Hz)' },
+];
+
+const NOISE_TYPES = ['None','White','Pink','Brown'];
+const CHIME_TONES = ['Bowl','Bell','Gong','Ding'];
+
+const SESSIONS = {
+  'Deep Sleep':     [{p:'Delta',dur:600,d:'Deep delta for restorative sleep'}],
+  'Meditation':     [{p:'Alpha',dur:180,d:'Alpha to relax'},{p:'Theta',dur:420,d:'Deep theta meditation'}],
+  'Focus Work':     [{p:'Alpha',dur:120,d:'Alpha warm-up'},{p:'Beta',dur:480,d:'Beta concentration'}],
+  'Power Nap':      [{p:'Alpha',dur:60,d:'Alpha wind-down'},{p:'Theta',dur:120,d:'Theta nap'},{p:'Alpha',dur:60,d:'Alpha wake-up'}],
+  'Deep Relaxation':[{p:'Alpha',dur:180,d:'Alpha relaxation'},{p:'Theta',dur:300,d:'Theta deepening'},
+                     {p:'Delta',dur:300,d:'Delta deep relaxation'},{p:'Theta',dur:120,d:'Theta return'},{p:'Alpha',dur:60,d:'Alpha emergence'}],
+};
+
+let audioCtx = null;
+let leftOsc = null, rightOsc = null, leftGain = null, rightGain = null, merger = null, masterGain = null;
+let noiseNode = null, noiseGain = null, noiseType = 'None';
+let isPlaying = false;
+let currentPreset = PRESETS[1]; // Theta
+
+// Chime state
+let chimeEnabled = false;
+let chimeInterval = 30;
+let chimeTone = 'Bowl';
+let chimeVolume = 0.5;
+let chimeTimer = null;
+
+// Timer state
+let timerInterval = null;
+let timerRemaining = 0;
+let timerTotal = 0;
+
+// Session state
+let sessionRunning = false;
+let sessionTimeout = null;
+
+// Viz
+let vizAn = null, vizData = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function createNoiseBuffer(type) {
+  const sr = audioCtx.sampleRate;
+  const len = sr * 2;
+  const buf = audioCtx.createBuffer(2, len, sr);
+
+  if (type === 'White') {
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+  } else if (type === 'Pink') {
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        b0=0.99886*b0+w*0.0555179;b1=0.99332*b1+w*0.0750759;
+        b2=0.96900*b2+w*0.1538520;b3=0.86650*b3+w*0.3104856;
+        b4=0.55000*b4+w*0.5329522;b5=-0.7616*b5-w*0.0168980;
+        d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;
+        b6=w*0.115926;
+      }
+    }
+  } else if (type === 'Brown') {
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        last = (last + 0.02 * w) / 1.02;
+        d[i] = last * 3.5;
+      }
+    }
+  }
+  return buf;
+}
+
+function startNoise(type) {
+  stopNoise();
+  if (type === 'None') return;
+  const buf = createNoiseBuffer(type);
+  noiseNode = audioCtx.createBufferSource();
+  noiseNode.buffer = buf;
+  noiseNode.loop = true;
+  noiseGain = audioCtx.createGain();
+  noiseGain.gain.value = parseFloat(el('noiseVolSlider').value) / 100 * 0.3;
+  noiseNode.connect(noiseGain).connect(audioCtx.destination);
+  noiseNode.start();
+}
+
+function stopNoise() {
+  if (noiseNode) { try { noiseNode.stop(); } catch(e){} noiseNode = null; }
+  noiseGain = null;
+}
+
+function playChime() {
+  if (!audioCtx) return;
+  const sr = audioCtx.sampleRate;
+  let freqs, amps, decay, attack, duration;
+
+  if (chimeTone === 'Bowl') {
+    freqs=[528,1056,1584,2112]; amps=[1,.5,.25,.12]; decay=1.5; attack=80; duration=3;
+  } else if (chimeTone === 'Bell') {
+    freqs=[800,1200,2400,3600]; amps=[1,.7,.3,.15]; decay=3; attack=200; duration=2;
+  } else if (chimeTone === 'Gong') {
+    freqs=[120,240,360,480]; amps=[1,.6,.3,.2]; decay=0.8; attack=50; duration=4;
+  } else {
+    freqs=[1200,2400]; amps=[1,.4]; decay=5; attack=300; duration=1;
+  }
+
+  const len = Math.floor(sr * duration);
+  const buf = audioCtx.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+
+  for (let i = 0; i < len; i++) {
+    const t = i / sr;
+    let s = 0;
+    for (let j = 0; j < freqs.length; j++) {
+      s += amps[j] * Math.sin(2 * Math.PI * freqs[j] * t);
+    }
+    const env = Math.exp(-decay * t) * (1 - Math.exp(-t * attack));
+    d[i] = s * env;
+  }
+
+  // Normalize
+  let peak = 0;
+  for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
+  if (peak > 0) for (let i = 0; i < len; i++) d[i] /= peak;
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const g = audioCtx.createGain();
+  g.gain.value = chimeVolume * 0.5;
+  src.connect(g).connect(audioCtx.destination);
+  src.start();
+}
+
+function startChimeTimer() {
+  stopChimeTimer();
+  if (!chimeEnabled || chimeInterval <= 0) return;
+  chimeTimer = setInterval(() => {
+    if (isPlaying && chimeEnabled) playChime();
+  }, chimeInterval * 1000);
+}
+
+function stopChimeTimer() {
+  if (chimeTimer) { clearInterval(chimeTimer); chimeTimer = null; }
+}
+
+function play() {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  if (isPlaying) { updateFrequencies(); return; }
+
+  const fL = parseFloat(el('freqL').value) || 60;
+  const fR = parseFloat(el('freqR').value) || 66;
+
+  // Stereo: left osc panned left, right osc panned right
+  leftOsc = audioCtx.createOscillator();
+  rightOsc = audioCtx.createOscillator();
+  leftOsc.frequency.value = fL;
+  rightOsc.frequency.value = fR;
+
+  leftGain = audioCtx.createGain();
+  rightGain = audioCtx.createGain();
+  const vol = parseFloat(el('volumeSlider').value) / 100 * 0.4;
+  leftGain.gain.value = 0;
+  rightGain.gain.value = 0;
+
+  merger = audioCtx.createChannelMerger(2);
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 1;
+
+  // Analyser for viz
+  vizAn = audioCtx.createAnalyser();
+  vizAn.fftSize = 1024;
+  vizData = new Float32Array(vizAn.fftSize);
+
+  leftOsc.connect(leftGain);
+  rightOsc.connect(rightGain);
+  leftGain.connect(merger, 0, 0);   // left channel
+  rightGain.connect(merger, 0, 1);  // right channel
+  merger.connect(masterGain);
+  masterGain.connect(vizAn);
+  vizAn.connect(audioCtx.destination);
+
+  leftOsc.start();
+  rightOsc.start();
+
+  // Fade in
+  leftGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
+  rightGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
+
+  isPlaying = true;
+  startNoise(noiseType);
+  startChimeTimer();
+  updateStatus();
+  drawViz();
+}
+
+function stop() {
+  stopSession();
+  stopChimeTimer();
+  stopTimer();
+
+  if (!isPlaying) return;
+  const now = audioCtx.currentTime;
+
+  // Fade out
+  if (leftGain) { leftGain.gain.linearRampToValueAtTime(0, now + 0.15); }
+  if (rightGain) { rightGain.gain.linearRampToValueAtTime(0, now + 0.15); }
+
+  setTimeout(() => {
+    if (leftOsc) { try { leftOsc.stop(); } catch(e){} leftOsc = null; }
+    if (rightOsc) { try { rightOsc.stop(); } catch(e){} rightOsc = null; }
+    leftGain = null; rightGain = null; merger = null; masterGain = null;
+    vizAn = null;
+    stopNoise();
+  }, 200);
+
+  isPlaying = false;
+  updateStatus();
+  el('timerDisplay').textContent = '00:00';
+  el('progressFill').style.width = '0%';
+  el('phaseText').textContent = '';
+}
+
+function updateFrequencies() {
+  const fL = parseFloat(el('freqL').value) || 60;
+  const fR = parseFloat(el('freqR').value) || 66;
+  if (leftOsc) leftOsc.frequency.linearRampToValueAtTime(fL, audioCtx.currentTime + 0.05);
+  if (rightOsc) rightOsc.frequency.linearRampToValueAtTime(fR, audioCtx.currentTime + 0.05);
+  updateBeatInfo();
+  updateFreqInfo();
+}
+
+function updateVolume() {
+  const vol = parseFloat(el('volumeSlider').value) / 100 * 0.4;
+  el('volumeVal').textContent = Math.round(vol / 0.4 * 100) + '%';
+  if (leftGain) leftGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+  if (rightGain) rightGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+}
+
+function updateBeatInfo() {
+  const fL = parseFloat(el('freqL').value) || 0;
+  const fR = parseFloat(el('freqR').value) || 0;
+  el('beatInfo').textContent = Math.abs(fR - fL).toFixed(1) + ' Hz beat';
+}
+
+function updateFreqInfo() {
+  const fL = parseFloat(el('freqL').value) || 0;
+  const fR = parseFloat(el('freqR').value) || 0;
+  el('freqInfo').textContent = `L: ${fL} Hz | R: ${fR} Hz | Beat: ${Math.abs(fR-fL).toFixed(1)} Hz`;
+}
+
+function updateStatus() {
+  const dot = el('statusDot');
+  const txt = el('statusText');
+  if (isPlaying) {
+    dot.className = 'status-dot on';
+    txt.textContent = sessionRunning ? 'Session' : 'Playing';
+  } else {
+    dot.className = 'status-dot off';
+    txt.textContent = 'Stopped';
+  }
+  updateFreqInfo();
+}
+
+// ─── Timer ─────────────────────────────────────────────────────────────────
+
+function playWithTimer() {
+  play();
+  const mins = parseInt(el('timerMin').value) || 15;
+  timerRemaining = mins * 60;
+  timerTotal = timerRemaining;
+  startTimer();
+  el('statusText').textContent = 'Playing (timed)';
+}
+
+function startTimer() {
+  stopTimer();
+  timerInterval = setInterval(() => {
+    if (timerRemaining <= 0) { stop(); return; }
+    timerRemaining--;
+    const m = Math.floor(timerRemaining / 60);
+    const s = timerRemaining % 60;
+    el('timerDisplay').textContent = pad(m) + ':' + pad(s);
+    const pct = ((timerTotal - timerRemaining) / timerTotal) * 100;
+    el('progressFill').style.width = pct + '%';
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+// ─── Sessions ──────────────────────────────────────────────────────────────
+
+function startSession(name) {
+  stop();
+  sessionRunning = true;
+  const stages = SESSIONS[name];
+  const total = stages.reduce((s,x) => s + x.dur, 0);
+  timerTotal = total;
+  timerRemaining = total;
+
+  el('statusText').textContent = 'Session: ' + name;
+  el('statusDot').className = 'status-dot on';
+
+  let elapsed = 0;
+  let stageIdx = 0;
+
+  function runStage() {
+    if (!sessionRunning || stageIdx >= stages.length) {
+      if (sessionRunning) {
+        stop();
+        el('statusText').textContent = 'Session Complete!';
+        el('statusDot').className = 'status-dot on';
+        el('phaseText').textContent = name + ' finished';
+        el('progressFill').style.width = '100%';
+      }
+      return;
+    }
+    const stage = stages[stageIdx];
+    const preset = PRESETS.find(p => p.name === stage.p);
+    if (preset) selectPreset(preset);
+    play();
+    el('phaseText').textContent = `Phase ${stageIdx+1}/${stages.length}: ${stage.d}`;
+
+    let stageSec = 0;
+    stopTimer();
+    timerInterval = setInterval(() => {
+      if (!sessionRunning) { stopTimer(); return; }
+      stageSec++;
+      elapsed++;
+      timerRemaining = total - elapsed;
+      const m = Math.floor(timerRemaining / 60);
+      const s = timerRemaining % 60;
+      el('timerDisplay').textContent = pad(m) + ':' + pad(s);
+      el('progressFill').style.width = ((elapsed / total) * 100) + '%';
+
+      if (stageSec >= stage.dur) {
+        stopTimer();
+        stageIdx++;
+        runStage();
+      }
+    }, 1000);
+  }
+  runStage();
+}
+
+function stopSession() {
+  sessionRunning = false;
+  if (sessionTimeout) { clearTimeout(sessionTimeout); sessionTimeout = null; }
+}
+
+// ─── Visualization ─────────────────────────────────────────────────────────
+
+const vizCanvas = el('vizCanvas');
+const vizCtx = vizCanvas.getContext('2d');
+
+function resizeViz() {
+  const r = vizCanvas.parentElement.getBoundingClientRect();
+  vizCanvas.width = r.width * (window.devicePixelRatio || 1);
+  vizCanvas.height = r.height * (window.devicePixelRatio || 1);
+  vizCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+}
+resizeViz();
+window.addEventListener('resize', resizeViz);
+
+function drawViz() {
+  if (!isPlaying || !vizAn) return;
+  requestAnimationFrame(drawViz);
+
+  vizAn.getFloatTimeDomainData(vizData);
+  const w = vizCanvas.parentElement.clientWidth;
+  const h = vizCanvas.parentElement.clientHeight;
+  const mid = h / 2;
+
+  vizCtx.clearRect(0, 0, w, h);
+
+  // Center line
+  vizCtx.strokeStyle = '#2a2a4a';
+  vizCtx.lineWidth = 1;
+  vizCtx.beginPath();
+  vizCtx.moveTo(0, mid);
+  vizCtx.lineTo(w, mid);
+  vizCtx.stroke();
+
+  // Waveform
+  const step = Math.max(1, Math.floor(vizData.length / w));
+  vizCtx.strokeStyle = '#3B82F6';
+  vizCtx.lineWidth = 2;
+  vizCtx.beginPath();
+  for (let i = 0; i < w; i++) {
+    const v = vizData[i * step] || 0;
+    const y = mid - v * mid * 0.8;
+    i === 0 ? vizCtx.moveTo(i, y) : vizCtx.lineTo(i, y);
+  }
+  vizCtx.stroke();
+}
+
+// ─── UI Setup ──────────────────────────────────────────────────────────────
+
+function el(id) { return document.getElementById(id); }
+function pad(n) { return n.toString().padStart(2, '0'); }
+
+// Build preset buttons
+const presetContainer = el('presetBtns');
+PRESETS.forEach(p => {
+  const div = document.createElement('div');
+  div.className = 'preset-btn';
+  div.style.setProperty('--color', p.color);
+  div.innerHTML = `<div class="name">${p.name}</div><div class="hz">${Math.abs(p.fR-p.fL)} Hz</div>`;
+  div.onclick = () => selectPreset(p);
+  presetContainer.appendChild(div);
+});
+
+function selectPreset(p) {
+  currentPreset = p;
+  el('freqL').value = p.fL;
+  el('freqR').value = p.fR;
+  el('presetDesc').textContent = p.desc;
+  updateBeatInfo();
+  updateFreqInfo();
+  if (isPlaying) updateFrequencies();
+
+  // Highlight
+  presetContainer.querySelectorAll('.preset-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', PRESETS[i] === p);
+  });
+}
+
+// Build noise buttons
+const noiseContainer = el('noiseBtns');
+NOISE_TYPES.forEach(t => {
+  const div = document.createElement('div');
+  div.className = 'noise-btn' + (t === 'None' ? ' active' : '');
+  div.textContent = t;
+  div.onclick = () => {
+    noiseType = t;
+    noiseContainer.querySelectorAll('.noise-btn').forEach(b => b.classList.remove('active'));
+    div.classList.add('active');
+    if (isPlaying) { stopNoise(); startNoise(t); }
+  };
+  noiseContainer.appendChild(div);
+});
+
+// Build chime buttons
+const chimeContainer = el('chimeBtns');
+CHIME_TONES.forEach(t => {
+  const div = document.createElement('div');
+  div.className = 'chime-btn' + (t === 'Bowl' ? ' active' : '');
+  div.textContent = t;
+  div.onclick = () => {
+    chimeTone = t;
+    chimeContainer.querySelectorAll('.chime-btn').forEach(b => b.classList.remove('active'));
+    div.classList.add('active');
+  };
+  chimeContainer.appendChild(div);
+});
+
+// Build session buttons
+const sessionContainer = el('sessionBtns');
+Object.keys(SESSIONS).forEach(name => {
+  const total = SESSIONS[name].reduce((s,x) => s + x.dur, 0);
+  const div = document.createElement('div');
+  div.className = 'session-btn';
+  div.innerHTML = `<div class="sname">${name}</div><div class="sdur">${Math.floor(total/60)} min</div>`;
+  div.onclick = () => startSession(name);
+  sessionContainer.appendChild(div);
+});
+
+// Event listeners
+el('volumeSlider').addEventListener('input', updateVolume);
+el('freqL').addEventListener('input', () => { updateBeatInfo(); if (isPlaying) updateFrequencies(); });
+el('freqR').addEventListener('input', () => { updateBeatInfo(); if (isPlaying) updateFrequencies(); });
+el('noiseVolSlider').addEventListener('input', () => {
+  const v = el('noiseVolSlider').value;
+  el('noiseVolVal').textContent = v + '%';
+  if (noiseGain) noiseGain.gain.value = v / 100 * 0.3;
+});
+el('chimeEnabled').addEventListener('change', () => {
+  chimeEnabled = el('chimeEnabled').checked;
+  if (chimeEnabled && isPlaying) startChimeTimer();
+  else stopChimeTimer();
+});
+el('chimeInterval').addEventListener('input', () => {
+  chimeInterval = parseInt(el('chimeInterval').value) || 30;
+  if (chimeEnabled && isPlaying) startChimeTimer();
+});
+el('chimeVolSlider').addEventListener('input', () => {
+  const v = el('chimeVolSlider').value;
+  el('chimeVolVal').textContent = v + '%';
+  chimeVolume = v / 100;
+});
+el('testChimeBtn').addEventListener('click', () => { initAudio(); if(audioCtx.state==='suspended')audioCtx.resume(); playChime(); });
+
+el('playBtn').addEventListener('click', play);
+el('timerBtn').addEventListener('click', playWithTimer);
+el('stopBtn').addEventListener('click', stop);
+
+// Init
+selectPreset(PRESETS[1]);
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
