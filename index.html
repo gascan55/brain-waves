@@ -141,7 +141,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
   <!-- Presets -->
   <div class="card">
-    <div class="card-title">Brainwave Presets</div>
+    <div class="card-title">Binaural Beats</div>
+    <div class="chime-toggle" style="margin-bottom:8px">
+      <label class="toggle"><input type="checkbox" id="binauralEnabled" checked><span class="track"></span></label>
+      <label>Enable Binaural Beats</label>
+    </div>
     <div class="presets" id="presetBtns"></div>
     <div class="preset-desc" id="presetDesc">Select a preset</div>
   </div>
@@ -271,6 +275,7 @@ let audioCtx = null;
 let leftOsc = null, rightOsc = null, leftGain = null, rightGain = null, merger = null, masterGain = null;
 let noiseNode = null, noiseGain = null, noiseType = 'None';
 let isPlaying = false;
+let binauralEnabled = true;
 let currentPreset = PRESETS[1]; // Theta
 
 // Isochronic state
@@ -512,9 +517,10 @@ function play() {
   leftOsc.start();
   rightOsc.start();
 
-  // Fade in
-  leftGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
-  rightGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
+  // Fade in (only if binaural is enabled)
+  const binVol = binauralEnabled ? vol : 0;
+  leftGain.gain.linearRampToValueAtTime(binVol, audioCtx.currentTime + 0.1);
+  rightGain.gain.linearRampToValueAtTime(binVol, audioCtx.currentTime + 0.1);
 
   isPlaying = true;
   startNoise(noiseType);
@@ -564,8 +570,9 @@ function updateFrequencies() {
 function updateVolume() {
   const vol = parseFloat(el('volumeSlider').value) / 100 * 0.4;
   el('volumeVal').textContent = Math.round(vol / 0.4 * 100) + '%';
-  if (leftGain) leftGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
-  if (rightGain) rightGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+  const binVol = binauralEnabled ? vol : 0;
+  if (leftGain) leftGain.gain.linearRampToValueAtTime(binVol, audioCtx.currentTime + 0.05);
+  if (rightGain) rightGain.gain.linearRampToValueAtTime(binVol, audioCtx.currentTime + 0.05);
   if (isoLfoGain) isoLfoGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
 }
 
@@ -830,6 +837,14 @@ el('chimeVolSlider').addEventListener('input', () => {
 });
 el('testChimeBtn').addEventListener('click', () => { initAudio(); if(audioCtx.state==='suspended')audioCtx.resume(); playChime(); });
 
+el('binauralEnabled').addEventListener('change', () => {
+  binauralEnabled = el('binauralEnabled').checked;
+  if (isPlaying) {
+    const vol = binauralEnabled ? parseFloat(el('volumeSlider').value) / 100 * 0.4 : 0;
+    if (leftGain) leftGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+    if (rightGain) rightGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+  }
+});
 el('isoEnabled').addEventListener('change', () => {
   isoEnabled = el('isoEnabled').checked;
   if (isPlaying) { if (isoEnabled) startIsochronic(); else stopIsochronic(); }
