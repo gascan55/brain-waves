@@ -382,16 +382,17 @@ function startIsochronic() {
   isoOsc.frequency.value = carrierFreq;
 
   // Gain node for amplitude modulation
+  // Offset = vol/2 so LFO swings gain from 0 to vol (one pulse per cycle)
   isoGain = audioCtx.createGain();
-  isoGain.gain.value = 0;
+  isoGain.gain.value = vol / 2;
 
   // LFO for pulsing (isochronic modulation)
   isoLfo = audioCtx.createOscillator();
   isoLfo.frequency.value = pulseFreq;
 
-  // LFO gain scales the modulation depth
+  // LFO gain = vol/2 so total gain = vol/2 ± vol/2 = 0 to vol
   isoLfoGain = audioCtx.createGain();
-  isoLfoGain.gain.value = vol;
+  isoLfoGain.gain.value = vol / 2;
 
   // Connect: LFO -> LFO gain -> carrier gain.gain (amplitude modulation)
   isoLfo.connect(isoLfoGain);
@@ -419,7 +420,8 @@ function updateIsochronic() {
   const vol = parseFloat(el('volumeSlider').value) / 100 * 0.4;
   isoOsc.frequency.linearRampToValueAtTime(carrierFreq, audioCtx.currentTime + 0.05);
   isoLfo.frequency.linearRampToValueAtTime(pulseFreq, audioCtx.currentTime + 0.05);
-  isoLfoGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+  isoGain.gain.linearRampToValueAtTime(vol / 2, audioCtx.currentTime + 0.05);
+  isoLfoGain.gain.linearRampToValueAtTime(vol / 2, audioCtx.currentTime + 0.05);
 }
 
 function playChime() {
@@ -573,7 +575,8 @@ function updateVolume() {
   const binVol = binauralEnabled ? vol : 0;
   if (leftGain) leftGain.gain.linearRampToValueAtTime(binVol, audioCtx.currentTime + 0.05);
   if (rightGain) rightGain.gain.linearRampToValueAtTime(binVol, audioCtx.currentTime + 0.05);
-  if (isoLfoGain) isoLfoGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+  if (isoGain) isoGain.gain.linearRampToValueAtTime(vol / 2, audioCtx.currentTime + 0.05);
+  if (isoLfoGain) isoLfoGain.gain.linearRampToValueAtTime(vol / 2, audioCtx.currentTime + 0.05);
 }
 
 function updateBeatInfo() {
